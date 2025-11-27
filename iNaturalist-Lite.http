@@ -1,0 +1,6 @@
+@iNaturalist_Lite_HostAddress = http://localhost:5052
+
+GET {{iNaturalist_Lite_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

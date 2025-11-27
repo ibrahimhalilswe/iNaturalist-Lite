@@ -1,0 +1,350 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iNaturalist-Lite: Sosyal Keşif</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #map {
+            flex: 3;
+            height: 100%;
+            background: #e0e0e0;
+        }
+
+        #sidebar {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        /* Giriş Ekranı */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            width: 300px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .login-input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .upload-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 5px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+            .btn:hover {
+                background: #219150;
+                transform: translateY(-2px);
+            }
+
+        /* Liste ve Popup */
+        #observationList {
+            list-style: none;
+            padding: 0;
+        }
+
+            #observationList li {
+                background: white;
+                margin-bottom: 10px;
+                padding: 15px;
+                border-radius: 8px;
+                border-left: 5px solid #27ae60;
+                font-size: 14px;
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+
+                #observationList li:hover {
+                    transform: translateX(5px);
+                    background-color: #e8f5f9;
+                }
+
+        .popup-img {
+            width: 100%;
+            max-width: 220px;
+            border-radius: 8px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+        }
+
+        .user-info {
+            font-weight: bold;
+            color: #27ae60;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>🌿 Hoş Geldiniz</h2>
+            <p>Lütfen isminizi girin:</p>
+            <input type="text" id="usernameInput" class="login-input" placeholder="Adınız Soyadınız">
+            <button class="btn" onclick="login()">Keşfe Başla 🚀</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="sidebar">
+        <div>
+            <h2 id="welcomeMsg">🌿 iNaturalist-Lite</h2>
+            <small>● Konum: <span id="locationStatus" style="color:orange">Bekleniyor...</span></small>
+        </div>
+
+        <div class="upload-box">
+            <h3>📸 Gözlem Ekle</h3>
+            <input type="file" id="photoInput" accept="image/*" style="width: 100%; margin-bottom: 10px;">
+            <button class="btn" onclick="analyzeAndSave()">Analiz Et ve Paylaş</button>
+            <p id="statusMsg" style="margin-top: 10px; font-size: 13px; color: gray;"></p>
+        </div>
+
+        <h3>Son Gözlemler</h3>
+        <ul id="observationList"></ul>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --- DEĞİŞKENLER ---
+        let map = null;
+        let currentUser = "Misafir";
+        let userBadge = "🌱";
+        let userLat = 38.6745;
+        let userLng = 39.1944;
+
+        // API AYARLARI
+        const PLANTNET_KEY = "2b10QgdZ6SDWXZLoma7EwVxhe";
+        const AI_API_URL = `https://my-api.plantnet.org/v2/identify/all?api-key=${PLANTNET_KEY}&include-related-images=false&no-reject=false&lang=tr`;
+        const BACKEND_URL_BASE = "http://localhost:5052/api/plants";
+
+        // --- 1. GİRİŞ FONKSİYONU ---
+        function login() {
+            const nameInput = document.getElementById('usernameInput');
+            if (!nameInput.value.trim()) { alert("Lütfen isim girin!"); return; }
+
+            currentUser = nameInput.value.trim();
+            const rozetler = ["🌿", "🍄", "🦋", "📸", "🌲"];
+            userBadge = rozetler[Math.floor(Math.random() * rozetler.length)];
+
+            document.getElementById('welcomeMsg').innerHTML = `${userBadge} Merhaba, <b>${currentUser}</b>`;
+            document.getElementById('loginOverlay').style.display = 'none';
+
+            initMap();
+            locateUser();
+            loadRealData();
+        }
+
+        // --- 2. HARİTA BAŞLATMA ---
+        function initMap() {
+            if (map !== null) return;
+            map = L.map('map').setView([userLat, userLng], 15);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+        }
+
+        // --- 3. KONUM BULMA ---
+        function locateUser() {
+            const statusSpan = document.getElementById('locationStatus');
+            if (navigator.geolocation) {
+                statusSpan.innerText = "Aranıyor...";
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLat = position.coords.latitude;
+                        userLng = position.coords.longitude;
+                        statusSpan.innerText = "Bulundu ✅";
+                        statusSpan.style.color = "green";
+                        if (map) {
+                            map.setView([userLat, userLng], 18);
+                            L.circle([userLat, userLng], { radius: 20, color: 'blue', fillColor: '#3498db', fillOpacity: 0.3 }).addTo(map).bindPopup("Buradasınız").openPopup();
+                        }
+                    },
+                    () => { statusSpan.innerText = "GPS Kapalı"; statusSpan.style.color = "red"; }
+                );
+            }
+        }
+
+        // --- 4. VERİ ÇEKME ---
+        function loadRealData() {
+            const list = document.getElementById('observationList');
+            fetch(BACKEND_URL_BASE)
+                .then(r => r.json())
+                .then(data => {
+                    list.innerHTML = "";
+                    data.forEach(item => {
+                        const fullPhotoUrl = `http://localhost:5052${item.photoUrl}`;
+                        const popupContent = `
+                                <div style="text-align:center">
+                                    <span class="user-info">${item.userBadge || '👤'} ${item.userName || 'Misafir'}</span>
+                                    <b>${item.name}</b><br>
+                                    <img src="${fullPhotoUrl}" class="popup-img" onerror="this.style.display='none'"><br>
+                                    <small>${item.description}</small>
+                                </div>`;
+
+                        // Konum verisi yoksa varsayılanı kullan
+                        let lat = (item.lat && item.lat !== 0) ? item.lat : (38.6745 + (Math.random() - 0.5) * 0.01);
+                        let lng = (item.lng && item.lng !== 0) ? item.lng : (39.1944 + (Math.random() - 0.5) * 0.01);
+
+                        const marker = L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+                        const li = document.createElement('li');
+                        li.innerHTML = `${item.userBadge || ''} <b>${item.name}</b><br><small>Ekleyen: ${item.userName || 'Misafir'}</small>`;
+                        li.onclick = function () { map.flyTo([lat, lng], 18, { duration: 1.5 }); marker.openPopup(); };
+                        list.appendChild(li);
+                    });
+                })
+                .catch(e => console.error(e));
+        }
+
+        // --- 5. ANALİZ VE KAYIT (KONUM FİX) ---
+        async function analyzeAndSave() {
+            const fileInput = document.getElementById('photoInput');
+            const statusMsg = document.getElementById('statusMsg');
+
+            if (!fileInput.files[0]) { alert("Dosya seçin!"); return; }
+
+            statusMsg.innerHTML = '<div class="loader"></div> Yapay Zeka Analiz Ediyor...';
+            statusMsg.style.color = "blue";
+
+            const formData = new FormData();
+            formData.append('images', fileInput.files[0]);
+            formData.append('organs', 'flower');
+
+            let bitkiAdi = "Tanımsız";
+            let dogruluk = "0";
+
+            try {
+                // A) PL@NTNET İSTEĞİ
+                const responseAI = await fetch(AI_API_URL, { method: 'POST', body: formData });
+
+                if (responseAI.ok) {
+                    const result = await responseAI.json();
+                    if (result.results && result.results.length > 0) {
+                        const bestMatch = result.results[0];
+                        bitkiAdi = bestMatch.species.commonNames[0] || bestMatch.species.scientificNameWithoutAuthor;
+                        dogruluk = (bestMatch.score * 100).toFixed(1);
+                        statusMsg.innerText = `✅ AI Buldu: ${bitkiAdi} (%${dogruluk})`;
+                    }
+                } else {
+                    // Yedek Mod
+                    console.warn("AI Hatası, Yedek Mod");
+                    const fName = fileInput.files[0].name.toLowerCase();
+                    if (fName.includes("gül")) bitkiAdi = "Kırmızı Gül (Yedek)";
+                    else if (fName.includes("papatya")) bitkiAdi = "Papatya (Yedek)";
+                    else bitkiAdi = "Bilinmeyen Tür (Yedek)";
+                    statusMsg.innerText = `⚠️ AI Ulaşılamadı. Yedek mod: ${bitkiAdi}`;
+                }
+
+                // B) VERİTABANINA KAYIT (JSON Formatı - Sayısal Konum)
+
+                const veriPaketi = {
+                    name: bitkiAdi,
+                    description: `AI Tespiti (%${dogruluk})`,
+                    // KRİTİK: Sayı olarak gönderiyoruz (replace vs. yok)
+                    lat: userLat,
+                    lng: userLng,
+                    userName: currentUser
+                };
+
+                const responseDB = await fetch(BACKEND_URL_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(veriPaketi)
+                });
+
+                if (responseDB.ok) {
+                    statusMsg.style.color = "green";
+                    statusMsg.innerText = `✅ ${bitkiAdi} Başarıyla Kaydedildi!`;
+                    loadRealData();
+                    fileInput.value = "";
+                    if (map) map.flyTo([userLat, userLng], 18, { duration: 1.5 });
+                } else {
+                    const errorText = await responseDB.text();
+                    throw new Error("Kayıt Başarısız: " + errorText);
+                }
+
+            } catch (error) {
+                console.error(error);
+                statusMsg.innerText = "Hata: " + error.message;
+                statusMsg.style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
