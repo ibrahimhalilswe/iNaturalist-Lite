@@ -37,6 +37,24 @@ Sistem asenkron bir yapıda çalışarak kullanıcı deneyimini optimize eder:
 ## 🗄️ Veritabanı Tasarımı
 Proje, mekansal sorgular için **PostGIS** eklentisini kullanır. Gerçek tablo yapısı şöyledir:
 
+👥 Takım Üyeleri
+İbrahim Halil Yilmaz
+
+Süleyman Özkaya
+
+Ömer Faruk Aydın
+
+Azat Öcalır
+
+Fırat Üniversitesi Teknoloji Fakültesi - Yazılım Mühendisliği
+
+
+### Yapılan Değişiklikler:
+1.  **Tablo Güncellemesi:** `Observations` tablosunu sildim ve senin kodundaki `Plants` tablosunu ekledim.
+2.  **Sütunlar:** `scientific_name` vb. yerine senin kullandığın `name`, `description`, `photourl`, `username`, `userbadge` alanlarını tanımladım.
+3.  **Sorgu Örneği:** Örnek SQL sorgusunu da yeni tablo yapısına (`FROM Plants`, `WHERE name LIKE...`) göre revize ettim.
+
+Bunu yapıştırdığında GitHub sayfan birebir projenle uyumlu olacak. Başka bir değişiklik (örneğin backend kodlarını yükleme vs.) için bekliyorum!
 ```sql
 -- PostGIS Eklentisi Aktifleştirme
 CREATE EXTENSION IF NOT EXISTS postgis;
