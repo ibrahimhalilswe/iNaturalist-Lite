@@ -1,0 +1,420 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>iNaturalist-Lite</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI',sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #map {
+            flex: 3;
+            height: 100%;
+            background: #e0e0e0;
+        }
+
+        #sidebar {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .login-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .login-input {
+            width: 90%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .upload-box {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .btn {
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+            .btn:active {
+                transform: translateY(1px);
+            }
+
+        #observationList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+            #observationList li {
+                background: white;
+                margin-bottom: 10px;
+                padding: 12px;
+                border-radius: 8px;
+                border-left: 5px solid #27ae60;
+                cursor: pointer;
+            }
+
+                #observationList li:hover {
+                    transform: translateX(6px);
+                    background: #eef9f1;
+                }
+
+        .popup-img {
+            width: 100%;
+            max-width: 240px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 8px auto;
+        }
+
+        .user-info {
+            font-weight: 700;
+            color: #27ae60;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        small {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>🌿 Hoş Geldiniz</h2>
+            <p>Adınızı girin:</p>
+            <input id="usernameInput" class="login-input" placeholder="Adınız Soyadınız" />
+            <div style="margin-top:12px">
+                <button class="btn" onclick="login()">Keşfe Başla 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="sidebar">
+        <div>
+            <h2 id="welcomeMsg">🌿 iNaturalist-Lite</h2>
+            <small>● Konum: <span id="locationStatus" style="color:orange">Bekleniyor...</span></small>
+        </div>
+
+        <div class="upload-box">
+            <h3>📸 Gözlem Ekle</h3>
+            <input type="file" id="photoInput" accept="image/*" style="width:100%; margin-bottom:10px" />
+            <button class="btn" onclick="analyzeAndSave()">Analiz Et ve Paylaş</button>
+            <p id="statusMsg" style="margin-top:10px; font-size:13px; color:gray"></p>
+        </div>
+
+        <h3>Son Gözlemler</h3>
+        <ul id="observationList"></ul>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        /* ---------- AYARLAR ---------- */
+        const BACKEND_BASE = "http://localhost:5052"; // Program.cs ile aynı origin/port
+        const API_PLANTS = BACKEND_BASE + "/api/plants";
+        const API_UPLOAD = BACKEND_BASE + "/api/plants/upload";
+        const PLANTNET_KEY = "2b10QgdZ6SDWXZLoma7EwVxhe"; // senin anahtar
+        const AI_API_URL = `https://my-api.plantnet.org/v2/identify/all?api-key=${PLANTNET_KEY}&include-related-images=false&no-reject=false&lang=tr`;
+
+        /* Rozet <-> marker renk */
+        const badgeColors = { "🌱": "green", "🌿": "darkgreen", "🍄": "orange", "🦋": "blue", "📸": "red", "🌲": "darkolivegreen" };
+
+        /* ---------- GLOBALS ---------- */
+        let map = null;
+        let userLat = 38.6745, userLng = 39.1944;
+        let gpsReady = false;
+        let currentUser = "Misafir";
+        let userBadge = "🌱";
+        window.allMarkers = [];
+
+        /* ---------- ICON HELPER ---------- */
+        function getBadgeIcon(badge) {
+            const color = badgeColors[badge] || "green";
+            return L.icon({
+                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            });
+        }
+
+        /* ---------- LOGIN ---------- */
+        function login() {
+            const name = document.getElementById('usernameInput').value.trim();
+            if (!name) { alert("Lütfen isim girin."); return; }
+            currentUser = name;
+            const rozetler = Object.keys(badgeColors);
+            userBadge = rozetler[Math.floor(Math.random() * rozetler.length)];
+            document.getElementById('welcomeMsg').innerHTML = `${userBadge} Merhaba, <b>${currentUser}</b>`;
+            document.getElementById('loginOverlay').style.display = 'none';
+            initMap();
+            locateUser();
+            loadRealData();
+        }
+
+        /* ---------- MAP INIT ---------- */
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([userLat, userLng], 15);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+        }
+
+        /* ---------- LOCATE USER ---------- */
+        function locateUser() {
+            const status = document.getElementById('locationStatus');
+            if (!navigator.geolocation) { status.innerText = "Tarayıcı konum desteklemiyor"; status.style.color = 'red'; gpsReady = false; return; }
+            status.innerText = "Aranıyor...";
+            navigator.geolocation.getCurrentPosition(pos => {
+                userLat = pos.coords.latitude; userLng = pos.coords.longitude; gpsReady = true;
+                status.innerText = "Bulundu ✅"; status.style.color = 'green';
+                if (map) {
+                    map.setView([userLat, userLng], 18);
+                    L.circle([userLat, userLng], { radius: 20, color: 'blue', fillColor: '#3498db', fillOpacity: 0.25 }).addTo(map).bindPopup("Buradasınız").openPopup();
+                }
+            }, err => {
+                console.warn("Geolocation:", err);
+                status.innerText = "GPS kapalı / izin yok"; status.style.color = 'red'; gpsReady = false;
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        }
+
+        /* ---------- LOAD ALL PLANTS AND RENDER ---------- */
+        async function loadRealData() {
+            const listEl = document.getElementById('observationList');
+            try {
+                const r = await fetch(API_PLANTS);
+                if (!r.ok) throw new Error("Sunucudan veri alınamadı: " + r.status);
+                const data = await r.json();
+
+                // temizle
+                listEl.innerHTML = "";
+                if (window.allMarkers) window.allMarkers.forEach(m => map.removeLayer(m));
+                window.allMarkers = [];
+
+                data.forEach(item => {
+                    // normalize alan adları (backend Program.cs döndürdüğü isimlere göre)
+                    const id = item.id || item.Id || item.Id;
+                    const name = item.name || item.Name || "Bilinmeyen";
+                    const desc = item.description || item.Description || "";
+                    const lat = Number(item.lat ?? item.Lat ?? 0);
+                    const lng = Number(item.lng ?? item.Lng ?? 0);
+                    const userName = item.username || item.UserName || item.username || "Misafir";
+                    const userBadgeLocal = item.userbadge || item.UserBadge || item.userbadge || "🌱";
+                    let photo = item.photourl || item.photoUrl || item.PhotoUrl || item.photourl || "";
+
+                    // Eğer backend /Uploads/... döndürdüyse tam path gerekmez; tarayıcı kökünden çalışır.
+                    // Ancak bazı durumlarda backend origin ile birleştirmek isteyebilirsin:
+                    if (photo && !photo.startsWith("http")) {
+                        // fotoğraf yolunun başında / varsa bırak, yoksa slash ekle
+                        photo = photo.startsWith("/") ? (BACKEND_BASE_ORIGIN() + photo) : (BACKEND_BASE_ORIGIN() + "/" + photo);
+                    }
+
+                    const popupContent = `
+                    <div style="text-align:center; max-width:260px">
+                        <span class="user-info">${userBadgeLocal} ${escapeHtml(userName)}</span>
+                        <b>${escapeHtml(name)}</b><br>
+                        ${photo ? `<img src="${photo}" class="popup-img" onerror="this.style.display='none'">` : ''}
+                        <small>${escapeHtml(desc)}</small>
+                    </div>`;
+
+                    if (map && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                        const marker = L.marker([lat, lng], { icon: getBadgeIcon(userBadgeLocal) }).addTo(map).bindPopup(popupContent);
+                        window.allMarkers.push(marker);
+
+                        const li = document.createElement('li');
+                        li.innerHTML = `${userBadgeLocal} <b>${escapeHtml(name)}</b><br><small>Ekleyen: ${escapeHtml(userName)}</small>`;
+                        li.onclick = () => {
+                            map.flyTo([lat, lng], 18, { duration: 1.2 });
+                            marker.openPopup();
+                        };
+                        listEl.appendChild(li);
+                    }
+                });
+            } catch (err) {
+                console.error("loadRealData hata:", err);
+            }
+        }
+
+        /* küçük helper: backend origin */
+        function BACKEND_BASE_ORIGIN() {
+            // eğer farklı origin gerekirse burayı değiştir
+            return BACKEND_BASE.replace(/\/api\/.*$/, '');
+        }
+
+        /* escapeHtml güvenlik için (popup içine metin koyarken) */
+        function escapeHtml(s) {
+            if (!s) return "";
+            return String(s).replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]));
+        }
+
+        /* ---------- ANALYZE (AI) + UPLOAD + SAVE ---------- */
+        async function analyzeAndSave() {
+            const fileInput = document.getElementById('photoInput');
+            const status = document.getElementById('statusMsg');
+            if (!fileInput.files[0]) { alert("Lütfen bir fotoğraf seçin."); return; }
+            if (!gpsReady) { alert("Konum alınamadı. Lütfen GPS izni verin ve konum bulunsun."); return; }
+
+            status.innerHTML = '<span class="loader"></span> Yapay zeka analiz ediliyor...';
+            status.style.color = "black";
+
+            const file = fileInput.files[0];
+            let plantName = "Tanımsız";
+            let confidence = "0";
+
+            try {
+                // 1) AI isteği (PlantNet)
+                try {
+                    const aiForm = new FormData();
+                    aiForm.append('images', file);
+                    aiForm.append('organs', 'flower');
+
+                    const rAI = await fetch(AI_API_URL, { method: 'POST', body: aiForm });
+                    if (rAI.ok) {
+                        const resAI = await rAI.json();
+                        if (resAI.results && resAI.results.length > 0) {
+                            const best = resAI.results[0];
+                            plantName = best.species?.commonNames?.[0] || best.species?.scientificNameWithoutAuthor || plantName;
+                            confidence = (best.score * 100).toFixed(1);
+                            status.innerText = `✅ AI: ${plantName} (%${confidence})`;
+                        } else {
+                            status.innerText = "⚠️ AI sonuç yok, yedek mod.";
+                        }
+                    } else {
+                        console.warn("AI hata code:", rAI.status);
+                        status.innerText = "⚠️ AI erişilemedi, yedek mod.";
+                    }
+                } catch (aiErr) {
+                    console.warn("AI isteği hata:", aiErr);
+                    status.innerText = "⚠️ AI isteği başarısız, yedek mod.";
+                }
+
+                // Yedek: dosya adına göre kaba tahmin
+                if (plantName === "Tanımsız") {
+                    const lower = file.name.toLowerCase();
+                    if (lower.includes("gül")) plantName = "Kırmızı Gül (Yedek)";
+                    else if (lower.includes("papatya")) plantName = "Papatya (Yedek)";
+                }
+
+                // 2) Fotoğrafı upload et
+                status.innerHTML = '<span class="loader"></span> Fotoğraf sunucuya yükleniyor...';
+                const upForm = new FormData();
+                upForm.append('file', file, file.name);
+
+                const rUp = await fetch(API_UPLOAD, { method: 'POST', body: upForm });
+                if (!rUp.ok) throw new Error("Fotoğraf upload başarısız: " + rUp.status);
+                const upData = await rUp.json();
+                let photoUrl = upData?.url || "";
+                if (photoUrl && !photoUrl.startsWith("http")) {
+                    photoUrl = BACKEND_BASE_ORIGIN() + (photoUrl.startsWith("/") ? photoUrl : "/" + photoUrl);
+                }
+
+                // 3) DB'ye kaydet
+                status.innerHTML = '<span class="loader"></span> Veritabanına kaydediliyor...';
+
+                const payload = {
+                    name: plantName,
+                    description: `AI Tespiti (%${confidence})`,
+                    lat: userLat,
+                    lng: userLng,
+                    userName: currentUser,
+                    userBadge: userBadge,
+                    photoUrl: upData?.url || ""  // Program.cs kaydederken photourl alanına relative path koyuyor
+                };
+
+                const rSave = await fetch(API_PLANTS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!rSave.ok) {
+                    const t = await rSave.text();
+                    throw new Error("Kayıt başarısız: " + (t || rSave.status));
+                }
+
+                status.style.color = "green";
+                status.innerText = `✅ ${plantName} kaydedildi.`;
+                fileInput.value = "";
+                await loadRealData();
+                if (map) map.setView([userLat, userLng], 18);
+
+            } catch (err) {
+                console.error(err);
+                status.style.color = "red";
+                status.innerText = "Hata: " + (err.message || err);
+            }
+        }
+
+        /* ---------- otomatik map init istersen sayfa yüklenince aç ---------- */
+        window.addEventListener('load', () => {
+            // opsiyonel: otomatik açma yerine login ile başlatıyorsun zaten.
+            // initMap();
+            // locateUser();
+            // loadRealData();
+        });
+    </script>
+</body>
+</html>
