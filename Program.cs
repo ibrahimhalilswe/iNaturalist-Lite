@@ -28,7 +28,7 @@ builder.Host.UseSerilog((ctx, lc) => lc
 // --- 2. SERVİSLER ---
 builder.Services.AddCors(o =>
     o.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
+        p.WithOrigins("https://inaturalist-lite.vercel.app", "http://localhost:5173", "http://localhost:5052")
          .AllowAnyMethod()
          .AllowAnyHeader()));
 
@@ -93,8 +93,6 @@ using (var scope = app.Services.CreateScope())
 
 // --- 3. PİPELİNE ---
 // app.UseHttpsRedirection(); // Mobil cihazlarda yerel IP üzerinden self-signed sertifika hatası verdiği için kapatıldı.
-app.UseDefaultFiles();
-app.UseStaticFiles(); // wwwroot
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();

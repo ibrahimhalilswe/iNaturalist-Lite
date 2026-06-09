@@ -1734,13 +1734,15 @@
         /* ========================================
            SETTINGS
            ======================================== */
-        // URL'ler göreceli — backend nerede çalışırsa çalışsın
-        const API_UPLOAD = "/api/plants/upload";
-        const API_PLANTS = "/api/plants?pageSize=2000";
-        const API_STATS  = "/api/plants/stats";
+        // Backend URL (Vite Environment Variable destekli)
+        const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'https://inaturalist-lite.onrender.com';
+        
+        const API_UPLOAD = `${API_BASE_URL}/api/plants/upload`;
+        const API_PLANTS = `${API_BASE_URL}/api/plants?pageSize=2000`;
+        const API_STATS  = `${API_BASE_URL}/api/plants/stats`;
 
         // PlantNet artık kendi backend'imizden çağrılıyor (API key güvenli)
-        const AI_API_URL = "/api/identify";
+        const AI_API_URL = `${API_BASE_URL}/api/identify`;
 
         /* ========================================
            GLOBALS
@@ -1882,7 +1884,7 @@
             const token = localStorage.getItem('token');
             if (!token) return;
             try {
-                const r = await fetch('/api/user/profile', { headers: getAuthHeaders() });
+                const r = await fetch(API_BASE_URL + '/api/user/profile', { headers: getAuthHeaders() });
                 if (r.ok) {
                     const data = await r.json();
                     loginUser(data.username, data.badge, data.email);
@@ -1954,7 +1956,7 @@
             const p = document.getElementById('loginPass').value;
             if(!u || !p) return showToast('Kullanıcı adı ve parola gerekli.', 'error');
             try {
-                const r = await fetch('/api/auth/login', {
+                const r = await fetch(API_BASE_URL + '/api/auth/login', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: u, password: p })
                 });
@@ -2014,7 +2016,7 @@
             if(!agree) return showToast('Kullanıcı sözleşmesini kabul etmelisiniz.', 'error');
 
             try {
-                const r = await fetch('/api/auth/register', {
+                const r = await fetch(API_BASE_URL + '/api/auth/register', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: u, email: e, password: p })
                 });
@@ -2034,7 +2036,7 @@
             const email = document.getElementById('forgotEmail').value.trim();
             if(!email) return showToast('E-posta girin', 'error');
             try {
-                const r = await fetch('/api/auth/forgot-password', {
+                const r = await fetch(API_BASE_URL + '/api/auth/forgot-password', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
@@ -2085,7 +2087,7 @@
             if(p !== pConf) return showToast('Şifreler eşleşmiyor.', 'error');
 
             try {
-                const r = await fetch('/api/auth/reset-password', {
+                const r = await fetch(API_BASE_URL + '/api/auth/reset-password', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, otpCode: otp, newPassword: p })
                 });
@@ -2114,9 +2116,9 @@
             // Load stats (using the new endpoints to count)
             try {
                 const [myRes, likedRes, profRes] = await Promise.all([
-                    fetch('/api/user/my-plants', { headers: getAuthHeaders() }),
-                    fetch('/api/user/liked-plants', { headers: getAuthHeaders() }),
-                    fetch('/api/user/profile', { headers: getAuthHeaders() })
+                    fetch(API_BASE_URL + '/api/user/my-plants', { headers: getAuthHeaders() }),
+                    fetch(API_BASE_URL + '/api/user/liked-plants', { headers: getAuthHeaders() }),
+                    fetch(API_BASE_URL + '/api/user/profile', { headers: getAuthHeaders() })
                 ]);
                 
                 if (myRes.ok) {
@@ -2190,7 +2192,7 @@
             const np = document.getElementById('secNewPass').value;
             if(!op || !np) return showToast('Alanları doldurun', 'error');
             try {
-                const r = await fetch('/api/auth/change-password', {
+                const r = await fetch(API_BASE_URL + '/api/auth/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify({ currentPassword: op, newPassword: np })
@@ -2576,8 +2578,8 @@
             let likeCount = 0, isLiked = false, comments = [];
             try {
                 const [lRes, cRes] = await Promise.all([
-                    fetch(`/api/plants/${item.id}/likes`, { headers: getAuthHeaders() }),
-                    fetch(`/api/plants/${item.id}/comments`)
+                    fetch(`${API_BASE_URL}/api/plants/${item.id}/likes`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE_URL}/api/plants/${item.id}/comments`)
                 ]);
                 if (lRes.ok) { const l = await lRes.json(); likeCount = l.count; isLiked = l.liked; }
                 if (cRes.ok) { comments = await cRes.json(); }
@@ -2659,8 +2661,8 @@
                 let likeCount = 0, isLiked = false, comments = [];
                 try {
                     const [lRes, cRes] = await Promise.all([
-                        fetch(`/api/plants/${item.id}/likes`, { headers: getAuthHeaders() }),
-                        fetch(`/api/plants/${item.id}/comments`)
+                        fetch(`${API_BASE_URL}/api/plants/${item.id}/likes`, { headers: getAuthHeaders() }),
+                        fetch(`${API_BASE_URL}/api/plants/${item.id}/comments`)
                     ]);
                     if (lRes.ok) { const l = await lRes.json(); likeCount = l.count; isLiked = l.liked; }
                     if (cRes.ok) { comments = await cRes.json(); }
@@ -2729,7 +2731,7 @@
             if (!iconEl || !countEl) return;
 
             try {
-                const r = await fetch(`/api/plants/${id}/like`, { method: 'POST', headers: getAuthHeaders() });
+                const r = await fetch(`${API_BASE_URL}/api/plants/${id}/like`, { method: 'POST', headers: getAuthHeaders() });
                 if (r.ok) {
                     const data = await r.json();
                     countEl.textContent = data.count;
@@ -2752,7 +2754,7 @@
             if (!text) return;
 
             try {
-                const r = await fetch(`/api/plants/${id}/comments`, {
+                const r = await fetch(`${API_BASE_URL}/api/plants/${id}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify({ text })
@@ -2816,8 +2818,8 @@
 
             try {
                 const [profRes, plantsRes] = await Promise.all([
-                    fetch(`/api/users/${username}/profile`),
-                    fetch(`/api/users/${username}/plants`)
+                    fetch(`${API_BASE_URL}/api/users/${username}/profile`),
+                    fetch(`${API_BASE_URL}/api/users/${username}/plants`)
                 ]);
 
                 if (!profRes.ok) {
