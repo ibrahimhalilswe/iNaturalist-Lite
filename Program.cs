@@ -58,7 +58,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<PlantNetValidationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IStorageService, LocalDiskStorageService>();
+builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
 
 builder.Services.AddAuthorization();
 
@@ -83,6 +83,14 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Otomatik Veritabanı Migrations (Buluta tabloları kurmak için)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<iNaturalist_Lite.Data.BiodiversityContext>();
+    db.Database.Migrate();
+}
+
+
 // --- 3. PİPELİNE ---
 // app.UseHttpsRedirection(); // Mobil cihazlarda yerel IP üzerinden self-signed sertifika hatası verdiği için kapatıldı.
 app.UseDefaultFiles();
@@ -92,17 +100,46 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-// Uploads klasörünü dışa aç
-var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
-if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/Uploads"
-});
-
 // --- 4. ENDPOINTLER ---
+// Render'da uyku modunu engellemek için basit HealthCheck (Cron Job veya Uptime Robot ile ping atılabilir)
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
+
+// Sistem Bağımlılıkları Test Endpoint'i (Neon DB & Cloudinary)
+app.MapGet("/api/system-health", async (iNaturalist_Lite.Data.BiodiversityContext db, IConfiguration config) =>
+{
+    var health = new System.Collections.Generic.Dictionary<string, object>();
+    
+    // DB Test
+    try
+    {
+        bool canConnect = await db.Database.CanConnectAsync();
+        health["Database"] = canConnect ? "Connected (Neon)" : "Disconnected";
+    }
+    catch (Exception ex)
+    {
+        health["Database"] = $"Error: {ex.Message}";
+    }
+
+    // Cloudinary Test
+    try
+    {
+        var cloudName = config["Cloudinary:CloudName"] ?? Environment.GetEnvironmentVariable("Cloudinary__CloudName");
+        var apiKey = config["Cloudinary:ApiKey"] ?? Environment.GetEnvironmentVariable("Cloudinary__ApiKey");
+        health["Cloudinary"] = (!string.IsNullOrEmpty(cloudName) && !string.IsNullOrEmpty(apiKey)) 
+            ? $"Configured ({cloudName})" 
+            : "Missing Credentials";
+    }
+    catch (Exception ex)
+    {
+         health["Cloudinary"] = $"Error: {ex.Message}";
+    }
+
+    return Results.Ok(new {
+        status = "System Check Completed",
+        details = health,
+        time = DateTime.UtcNow
+    });
+});
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapPlantEndpoints();

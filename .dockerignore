@@ -1,0 +1,25 @@
+# Build directories
+bin/
+obj/
+
+# Git
+.git/
+.gitignore
+
+# Environment variables
+.env
+*.env
+appsettings.Development.json
+
+# Logs and user uploads
+logs/
+Uploads/
+
+# Node modules (if any frontend is integrated)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.user
+*.suo
