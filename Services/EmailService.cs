@@ -12,13 +12,13 @@ public class EmailService : IEmailService
         _config = config;
     }
 
-    private async Task<bool> SendMailAsync(string toEmail, string subject, string body)
+    private async Task<string> SendMailAsync(string toEmail, string subject, string body)
     {
         var smtpEmail = _config["Smtp:Email"];
         var smtpPass = _config["Smtp:AppPassword"];
 
         if (string.IsNullOrEmpty(smtpEmail) || string.IsNullOrEmpty(smtpPass))
-            return false; // Configured without SMTP, skip gracefully
+            return "SMTP ayarları eksik."; // Configured without SMTP, skip gracefully
 
         try
         {
@@ -32,16 +32,16 @@ public class EmailService : IEmailService
                 IsBodyHtml = true
             };
             await client.SendMailAsync(mail);
-            return true;
+            return string.Empty; // Success
         }
         catch (Exception ex)
         {
             Console.WriteLine("Mail gönderilemedi: " + ex.Message);
-            return false;
+            return ex.Message; // Return the exact error message
         }
     }
 
-    public Task<bool> SendWelcomeEmailAsync(string toEmail, string username)
+    public Task<string> SendWelcomeEmailAsync(string toEmail, string username)
     {
         var body = $@"
 <div style='font-family: ""Segoe UI"", Roboto, Helvetica, Arial, sans-serif; color: #374151; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;'>
@@ -62,7 +62,7 @@ public class EmailService : IEmailService
         return SendMailAsync(toEmail, "iNaturalist Lite'a Hoş Geldin! 🌱", body);
     }
 
-    public Task<bool> SendOtpEmailAsync(string toEmail, string username, string otp)
+    public Task<string> SendOtpEmailAsync(string toEmail, string username, string otp)
     {
         var body = $@"
 <div style='font-family: ""Segoe UI"", Roboto, Helvetica, Arial, sans-serif; color: #374151; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;'>
@@ -81,7 +81,7 @@ public class EmailService : IEmailService
         return SendMailAsync(toEmail, "iNaturalist Lite - Şifre Sıfırlama Kodu", body);
     }
 
-    public Task<bool> SendPasswordChangedEmailAsync(string toEmail, string username)
+    public Task<string> SendPasswordChangedEmailAsync(string toEmail, string username)
     {
         var body = $@"
 <div style='font-family: ""Segoe UI"", Roboto, Helvetica, Arial, sans-serif; color: #374151; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;'>

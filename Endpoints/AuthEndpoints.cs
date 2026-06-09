@@ -37,11 +37,11 @@ public static class AuthEndpoints
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            var mailSuccess = await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
+            var mailError = await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
 
             var token = authService.GenerateJwtToken(user);
-            if (!mailSuccess)
-                return Results.Ok(new { success = true, token, username = user.Username, badge = user.Badge, message = "Kayıt başarılı ancak e-posta sunucusu hatası nedeniyle hoş geldin maili gönderilemedi." });
+            if (!string.IsNullOrEmpty(mailError))
+                return Results.Ok(new { success = true, token, username = user.Username, badge = user.Badge, message = $"Kayıt başarılı ancak mail gönderimi başarısız: {mailError}" });
             
             return Results.Ok(new { success = true, token, username = user.Username, badge = user.Badge });
         }).RequireRateLimiting("auth");
@@ -66,9 +66,9 @@ public static class AuthEndpoints
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             await db.SaveChangesAsync();
 
-            var mailSuccess = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
-            if (!mailSuccess)
-                return Results.BadRequest("Şifre sıfırlama kodu oluşturuldu ancak sunucu hatası nedeniyle e-posta gönderilemedi.");
+            var mailError = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
+            if (!string.IsNullOrEmpty(mailError))
+                return Results.BadRequest($"Şifre sıfırlama kodu oluşturuldu ancak mail gönderimi başarısız: {mailError}");
 
             return Results.Ok(new { success = true });
         }).RequireRateLimiting("auth");
@@ -87,9 +87,9 @@ public static class AuthEndpoints
             user.OtpExpiry = null;
             await db.SaveChangesAsync();
 
-            var mailSuccess = await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
-            if (!mailSuccess)
-                return Results.Ok(new { success = true, message = "Şifre başarıyla sıfırlandı ancak bilgilendirme e-postası gönderilemedi." });
+            var mailError = await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
+            if (!string.IsNullOrEmpty(mailError))
+                return Results.Ok(new { success = true, message = $"Şifre başarıyla sıfırlandı ancak mail gönderimi başarısız: {mailError}" });
 
             return Results.Ok(new { success = true });
         }).RequireRateLimiting("auth");
