@@ -29,14 +29,17 @@ public class EmailService : IEmailService
             using var client = new SmtpClient("smtp.gmail.com", 587)
             {
                 Credentials = new NetworkCredential(smtpEmail, smtpPass),
-                EnableSsl = true
+                EnableSsl = true,
+                Timeout = 60000 // 60 seconds
             };
             var mail = new MailMessage(smtpEmail, toEmail, subject, body)
             {
                 IsBodyHtml = true
             };
+            
+            Console.WriteLine("DEBUG: SmtpClient SendMailAsync çağrılıyor...");
             await client.SendMailAsync(mail);
-            Console.WriteLine("Mail gönderimi sonucu: BAŞARILI");
+            Console.WriteLine("DEBUG: Mail gönderimi sonucu: BAŞARILI");
             return string.Empty; // Success
         }
         catch (Exception ex)
