@@ -7,3 +7,5 @@ obj/
 logs/
 Uploads/
 *.user
+node_modules/
+dist/
