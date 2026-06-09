@@ -37,9 +37,12 @@ public static class AuthEndpoints
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
+            var mailSuccess = await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
 
             var token = authService.GenerateJwtToken(user);
+            if (!mailSuccess)
+                return Results.Ok(new { success = true, token, username = user.Username, badge = user.Badge, message = "Kayıt başarılı ancak e-posta sunucusu hatası nedeniyle hoş geldin maili gönderilemedi." });
+            
             return Results.Ok(new { success = true, token, username = user.Username, badge = user.Badge });
         }).RequireRateLimiting("auth");
 
@@ -63,7 +66,9 @@ public static class AuthEndpoints
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             await db.SaveChangesAsync();
 
-            await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
+            var mailSuccess = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
+            if (!mailSuccess)
+                return Results.BadRequest("Şifre sıfırlama kodu oluşturuldu ancak sunucu hatası nedeniyle e-posta gönderilemedi.");
 
             return Results.Ok(new { success = true });
         }).RequireRateLimiting("auth");
@@ -82,7 +87,9 @@ public static class AuthEndpoints
             user.OtpExpiry = null;
             await db.SaveChangesAsync();
 
-            await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
+            var mailSuccess = await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
+            if (!mailSuccess)
+                return Results.Ok(new { success = true, message = "Şifre başarıyla sıfırlandı ancak bilgilendirme e-postası gönderilemedi." });
 
             return Results.Ok(new { success = true });
         }).RequireRateLimiting("auth");
