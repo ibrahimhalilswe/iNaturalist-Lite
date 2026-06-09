@@ -60,20 +60,32 @@ public static class AuthEndpoints
 
         app.MapPost("/api/auth/forgot-password", async ([FromBody] ForgotPasswordInput input, BiodiversityContext db, IEmailService emailService) =>
         {
+            Console.WriteLine("DEBUG: ForgotPassword metodu tetiklendi. Email: " + input.Email);
+
+            if (emailService == null)
+            {
+                Console.WriteLine("DEBUG: HATA! emailService null.");
+                return Results.BadRequest("EmailService tanımlı değil.");
+            }
+
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == input.Email);
-            if (user == null) return Results.BadRequest("Bu e-posta adresine ait bir kullanıcı bulunamadı.");
+            if (user == null) return Results.NotFound("Kullanıcı bulunamadı.");
+
+            Console.WriteLine("DEBUG: Kullanıcı bulundu, mail gönderim bloğuna giriliyor...");
 
             var otp = new Random().Next(100000, 999999).ToString();
             user.OtpCode = otp;
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             await db.SaveChangesAsync();
 
-            Console.WriteLine($"DEBUG: emailService is null? {emailService == null}");
-            Console.WriteLine("DEBUG: Mail servisi çağrılmak üzere. Alıcı: " + user.Email);
+            Console.WriteLine("DEBUG: Mail servisi çağrılmak üzere...");
             var mailError = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
-            Console.WriteLine($"DEBUG: Forgot Password - Mail Endpoint Sonucu: '{mailError}'");
+            Console.WriteLine("DEBUG: Mail servisi çağrıldı, sonuç: " + mailError);
+            
             if (!string.IsNullOrEmpty(mailError))
                 return Results.BadRequest($"Şifre sıfırlama kodu oluşturuldu ancak mail gönderimi başarısız: {mailError}");
+
+            return Results.Ok(new { success = true });
 
             return Results.Ok(new { success = true });
         }).RequireRateLimiting("auth");
