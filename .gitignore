@@ -1,0 +1,9 @@
+.env
+appsettings.json
+appsettings.Development.json
+biodiversity.db
+bin/
+obj/
+logs/
+Uploads/
+*.user
