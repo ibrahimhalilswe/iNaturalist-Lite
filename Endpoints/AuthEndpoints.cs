@@ -37,8 +37,9 @@ public static class AuthEndpoints
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
+            Console.WriteLine($"DEBUG: Mail servisi çağrılmak üzere. Endpoint: Register (Alıcı: {user.Email})");
             var mailError = await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
-            Console.WriteLine($"Register - Mail Endpoint Sonucu: '{mailError}'");
+            Console.WriteLine($"DEBUG: Register - Mail Endpoint Sonucu: '{mailError}'");
 
             var token = authService.GenerateJwtToken(user);
             if (!string.IsNullOrEmpty(mailError))
@@ -67,8 +68,9 @@ public static class AuthEndpoints
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             await db.SaveChangesAsync();
 
+            Console.WriteLine($"DEBUG: Mail servisi çağrılmak üzere. Endpoint: Forgot Password (Alıcı: {user.Email})");
             var mailError = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
-            Console.WriteLine($"Forgot Password - Mail Endpoint Sonucu: '{mailError}'");
+            Console.WriteLine($"DEBUG: Forgot Password - Mail Endpoint Sonucu: '{mailError}'");
             if (!string.IsNullOrEmpty(mailError))
                 return Results.BadRequest($"Şifre sıfırlama kodu oluşturuldu ancak mail gönderimi başarısız: {mailError}");
 
@@ -89,8 +91,9 @@ public static class AuthEndpoints
             user.OtpExpiry = null;
             await db.SaveChangesAsync();
 
+            Console.WriteLine($"DEBUG: Mail servisi çağrılmak üzere. Endpoint: Reset Password (Alıcı: {user.Email})");
             var mailError = await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
-            Console.WriteLine($"Reset Password - Mail Endpoint Sonucu: '{mailError}'");
+            Console.WriteLine($"DEBUG: Reset Password - Mail Endpoint Sonucu: '{mailError}'");
             if (!string.IsNullOrEmpty(mailError))
                 return Results.Ok(new { success = true, message = $"Şifre başarıyla sıfırlandı ancak mail gönderimi başarısız: {mailError}" });
 

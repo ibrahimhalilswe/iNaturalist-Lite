@@ -14,7 +14,7 @@ public class EmailService : IEmailService
 
     private async Task<string> SendMailAsync(string toEmail, string subject, string body)
     {
-        Console.WriteLine($"Mail gönderim süreci başladı. Hedef: {toEmail}");
+        Console.WriteLine($"DEBUG: SendMailAsync TETIKLENDI. Alıcı: {toEmail}, Konu: {subject}");
         var smtpEmail = _config["Smtp:Email"];
         var smtpPass = _config["Smtp:AppPassword"];
 
