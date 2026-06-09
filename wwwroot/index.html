@@ -1734,8 +1734,9 @@
         /* ========================================
            SETTINGS
            ======================================== */
-        // Backend URL (Vite Environment Variable destekli)
-        const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'https://inaturalist-lite.onrender.com';
+        // Backend URL (Vite Environment Variable destekli - SyntaxError yaşamamak için % formatı kullanıldı)
+        const envApiUrl = "%VITE_API_URL%";
+        const API_BASE_URL = (envApiUrl !== "%" + "VITE_API_URL%") ? envApiUrl : 'https://inaturalist-lite.onrender.com';
         
         const API_UPLOAD = `${API_BASE_URL}/api/plants/upload`;
         const API_PLANTS = `${API_BASE_URL}/api/plants?pageSize=2000`;
