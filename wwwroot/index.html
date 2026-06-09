@@ -2172,7 +2172,7 @@
                 
                 return `
                 <div style="aspect-ratio:1; overflow:hidden; background:var(--border-light); cursor:pointer; position:relative;" onclick="openPlantDetail(${mappedPlant.id})" >
-                    ${photo ? `<img src="${photo}" style="width:100%; height:100%; object-fit:cover; transition:transform 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"/>` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--fg-muted); font-size:32px;">🌱</div>`}
+                    ${photo ? `<img src="${photo}" style="width:100%; height:100%; object-fit:cover; transition:transform 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"/ onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--fg-muted); font-size:32px;">🌱</div>`}
                 </div>
                 `;
             }).join('');
@@ -2521,7 +2521,7 @@
                     if (hasPhoto) {
                         icon = L.divIcon({
                             className: 'custom-pin-cont',
-                            html: `<div class="custom-pin"><img src="${item.photo}" onerror="this.src='https://via.placeholder.com/50'"></div><div class="pin-arrow"></div>`,
+                            html: `<div class="custom-pin"><img src="${item.photo}" onerror="this.onerror=null; this.src='https://placehold.co/50x50';"></div><div class="pin-arrow"></div>`,
                             iconSize: [46, 54], iconAnchor: [23, 54], popupAnchor: [0, -48]
                         });
                     } else {
@@ -2537,7 +2537,7 @@
                         <div style="text-align:center; min-width:180px; font-family:var(--font-sans);">
                             <h3 style="margin:0 0 4px; color:var(--primary); font-family:var(--font-serif); font-size:15px;">${item.name}</h3>
                             <small style="color:var(--fg-muted);">${item.badge} ${item.user}</small>
-                            ${hasPhoto ? `<br><img src="${item.photo}" style="width:100%; height:auto; margin-top:8px; border-radius:8px; display:block;">` : ''}
+                            ${hasPhoto ? `<br><img src="${item.photo}" style="width:100%; height:auto; margin-top:8px; border-radius:8px; display:block;" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` : ''}
                             <p style="margin:6px 0 0; font-size:12px; color:var(--fg-muted);">${item.desc}</p>
                         </div>
                     `;
@@ -2549,7 +2549,7 @@
                     li.innerHTML = `
                         <div class="list-avatar">
                             ${hasPhoto 
-                                ? `<img src="${item.photo}" onerror="this.parentElement.innerHTML='<span class=emoji>${item.badge}</span>'">`
+                                ? `<img src="${item.photo}" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">`
                                 : `<span class="emoji">${item.badge}</span>`
                             }
                         </div>
@@ -2606,7 +2606,7 @@
                             📍 Haritada Gör
                         </div>
                     </div>
-                    ${item.photo ? `<img src="${item.photo}" class="card-image" style="border-radius:0;" ondblclick="toggleLike(${item.id})" alt="${item.name}">` : ''}
+                    ${item.photo ? `<img src="${item.photo}" class="card-image" style="border-radius:0;" ondblclick="toggleLike(${item.id})" alt="${item.name}" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` : ''}
                     <div class="card-body" style="padding: 16px;">
                         <div class="social-actions" style="margin-bottom:12px;">
                             <button class="action-btn" onclick="toggleLike(${item.id}); setTimeout(() => openPlantDetail(${item.id}), 300);">
@@ -2691,7 +2691,7 @@
                             📍 Haritada Gör
                         </div>
                     </div>
-                    ${item.photo ? `<img src="${item.photo}" class="card-image" ondblclick="toggleLike(${item.id})" alt="${item.name}">` : ''}
+                    ${item.photo ? `<img src="${item.photo}" class="card-image" ondblclick="toggleLike(${item.id})" alt="${item.name}" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` : ''}
                     <div class="card-body">
                         <div class="social-actions">
                             <button class="action-btn" onclick="toggleLike(${item.id})">
@@ -2834,7 +2834,7 @@
                 let html = `
                     <div style="margin-bottom: 20px;">
                         <div style="font-size: 60px; line-height:1; margin-bottom:12px; display:inline-block; width:90px; height:90px; border-radius:50%; background:var(--bg-subtle); border:3px solid var(--primary); display:flex; align-items:center; justify-content:center; margin: 0 auto 12px auto;">
-                            ${profile.avatarUrl ? `<img src="${profile.avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : (profile.badge || '🌱')}
+                            ${profile.avatarUrl ? `<img src="${profile.avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` : (profile.badge || '🌱')}
                         </div>
                         <h2 style="margin:0 0 4px; color:var(--text-main); font-family:var(--font-serif);">@${profile.username}</h2>
                         <div style="color:var(--fg-muted); font-size:14px; margin-bottom:16px;">Katılım: ${formatDate(profile.createdAt)}</div>
@@ -2862,7 +2862,7 @@
                         html += `
                             <div style="aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--bg-subtle); position:relative; cursor:pointer;" onclick="openPlantDetail(${p.id})">
                                 ${p.photoUrl 
-                                    ? `<img src="${p.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                                    ? `<img src="${p.photoUrl}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='https://placehold.co/50x50';">` 
                                     : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:24px;">🌿</div>`
                                 }
                             </div>
