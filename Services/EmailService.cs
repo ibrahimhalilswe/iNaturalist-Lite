@@ -1,11 +1,13 @@
-using System.Net;
-using System.Net.Mail;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace iNaturalist_Lite.Services;
 
 public class EmailService : IEmailService
 {
     private readonly IConfiguration _config;
+    private static readonly HttpClient _httpClient = new HttpClient();
 
     public EmailService(IConfiguration config)
     {
@@ -14,33 +16,50 @@ public class EmailService : IEmailService
 
     private async Task<string> SendMailAsync(string toEmail, string subject, string body)
     {
-        Console.WriteLine($"DEBUG: SendMailAsync TETIKLENDI. Alıcı: {toEmail}, Konu: {subject}");
-        var smtpEmail = _config["Smtp:Email"];
-        var smtpPass = _config["Smtp:AppPassword"];
+        Console.WriteLine($"DEBUG: Resend API SendMailAsync TETIKLENDI. Alıcı: {toEmail}, Konu: {subject}");
+        
+        // Render Environment Variable'dan veya appsettings.json'dan API Key'i al
+        var apiKey = Environment.GetEnvironmentVariable("RESEND_API_KEY") ?? _config["Resend:ApiKey"];
+        var fromEmail = Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL") ?? _config["Resend:FromEmail"] ?? "onboarding@resend.dev"; // Default Resend test email
 
-        if (string.IsNullOrEmpty(smtpEmail) || string.IsNullOrEmpty(smtpPass))
+        if (string.IsNullOrEmpty(apiKey))
         {
-            Console.WriteLine("Mail gönderimi sonucu: SMTP ayarları eksik.");
-            return "SMTP ayarları eksik."; // Configured without SMTP, skip gracefully
+            Console.WriteLine("Mail gönderimi sonucu: RESEND_API_KEY eksik.");
+            return "RESEND_API_KEY eksik."; 
         }
 
         try
         {
-            using var client = new SmtpClient("smtp.gmail.com", 587)
+            var requestBody = new
             {
-                Credentials = new NetworkCredential(smtpEmail, smtpPass),
-                EnableSsl = true,
-                Timeout = 60000 // 60 seconds
+                from = $"iNaturalist Lite <{fromEmail}>",
+                to = new[] { toEmail },
+                subject = subject,
+                html = body
             };
-            var mail = new MailMessage(smtpEmail, toEmail, subject, body)
-            {
-                IsBodyHtml = true
-            };
+
+            var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
             
-            Console.WriteLine("DEBUG: SmtpClient SendMailAsync çağrılıyor...");
-            await client.SendMailAsync(mail);
-            Console.WriteLine("DEBUG: Mail gönderimi sonucu: BAŞARILI");
-            return string.Empty; // Success
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails")
+            {
+                Content = content
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+            Console.WriteLine("DEBUG: Resend API'ye POST isteği atılıyor...");
+            var response = await _httpClient.SendAsync(request);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("DEBUG: Mail gönderimi sonucu: BAŞARILI");
+                return string.Empty; // Success
+            }
+            else
+            {
+                Console.WriteLine($"Mail gönderimi başarsız. HTTP {response.StatusCode}: {responseString}");
+                return $"API Hatası: {response.StatusCode} - {responseString}";
+            }
         }
         catch (Exception ex)
         {
