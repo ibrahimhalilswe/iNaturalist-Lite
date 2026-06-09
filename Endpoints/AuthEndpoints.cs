@@ -38,6 +38,7 @@ public static class AuthEndpoints
             await db.SaveChangesAsync();
 
             var mailError = await emailService.SendWelcomeEmailAsync(user.Email, user.Username);
+            Console.WriteLine($"Register - Mail Endpoint Sonucu: '{mailError}'");
 
             var token = authService.GenerateJwtToken(user);
             if (!string.IsNullOrEmpty(mailError))
@@ -67,6 +68,7 @@ public static class AuthEndpoints
             await db.SaveChangesAsync();
 
             var mailError = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
+            Console.WriteLine($"Forgot Password - Mail Endpoint Sonucu: '{mailError}'");
             if (!string.IsNullOrEmpty(mailError))
                 return Results.BadRequest($"Şifre sıfırlama kodu oluşturuldu ancak mail gönderimi başarısız: {mailError}");
 
@@ -88,6 +90,7 @@ public static class AuthEndpoints
             await db.SaveChangesAsync();
 
             var mailError = await emailService.SendPasswordChangedEmailAsync(user.Email, user.Username);
+            Console.WriteLine($"Reset Password - Mail Endpoint Sonucu: '{mailError}'");
             if (!string.IsNullOrEmpty(mailError))
                 return Results.Ok(new { success = true, message = $"Şifre başarıyla sıfırlandı ancak mail gönderimi başarısız: {mailError}" });
 

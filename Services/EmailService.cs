@@ -14,11 +14,15 @@ public class EmailService : IEmailService
 
     private async Task<string> SendMailAsync(string toEmail, string subject, string body)
     {
+        Console.WriteLine($"Mail gönderim süreci başladı. Hedef: {toEmail}");
         var smtpEmail = _config["Smtp:Email"];
         var smtpPass = _config["Smtp:AppPassword"];
 
         if (string.IsNullOrEmpty(smtpEmail) || string.IsNullOrEmpty(smtpPass))
+        {
+            Console.WriteLine("Mail gönderimi sonucu: SMTP ayarları eksik.");
             return "SMTP ayarları eksik."; // Configured without SMTP, skip gracefully
+        }
 
         try
         {
@@ -32,11 +36,13 @@ public class EmailService : IEmailService
                 IsBodyHtml = true
             };
             await client.SendMailAsync(mail);
+            Console.WriteLine("Mail gönderimi sonucu: BAŞARILI");
             return string.Empty; // Success
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Mail gönderilemedi: " + ex.Message);
+            Console.WriteLine("Mail gönderilemedi Exception: " + ex.Message);
+            Console.WriteLine($"Mail gönderimi sonucu: {ex.Message}");
             return ex.Message; // Return the exact error message
         }
     }
