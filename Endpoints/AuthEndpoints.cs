@@ -61,14 +61,15 @@ public static class AuthEndpoints
         app.MapPost("/api/auth/forgot-password", async ([FromBody] ForgotPasswordInput input, BiodiversityContext db, IEmailService emailService) =>
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == input.Email);
-            if (user == null) return Results.Ok(new { success = true }); 
+            if (user == null) return Results.BadRequest("Bu e-posta adresine ait bir kullanıcı bulunamadı.");
 
             var otp = new Random().Next(100000, 999999).ToString();
             user.OtpCode = otp;
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             await db.SaveChangesAsync();
 
-            Console.WriteLine($"DEBUG: Mail servisi çağrılmak üzere. Endpoint: Forgot Password (Alıcı: {user.Email})");
+            Console.WriteLine($"DEBUG: emailService is null? {emailService == null}");
+            Console.WriteLine("DEBUG: Mail servisi çağrılmak üzere. Alıcı: " + user.Email);
             var mailError = await emailService.SendOtpEmailAsync(user.Email, user.Username, otp);
             Console.WriteLine($"DEBUG: Forgot Password - Mail Endpoint Sonucu: '{mailError}'");
             if (!string.IsNullOrEmpty(mailError))
