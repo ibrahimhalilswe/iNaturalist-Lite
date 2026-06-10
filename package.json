@@ -1,0 +1,13 @@
+{
+  "name": "inaturalist-lite-monorepo",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "web",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:mobile": "npm run dev --workspace=mobile"
+  }
+}
