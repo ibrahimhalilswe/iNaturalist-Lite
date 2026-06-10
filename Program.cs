@@ -102,7 +102,7 @@ app.UseRateLimiter();
 // Render'da uyku modunu engellemek için basit HealthCheck (Cron Job veya Uptime Robot ile ping atılabilir)
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
 
-// Sistem Bağımlılıkları Test Endpoint'i (Neon DB & Cloudinary)
+// Sistem Bağımlılıkları Test Endpoint'i (Supabase DB & Cloudinary)
 app.MapGet("/api/system-health", async (iNaturalist_Lite.Data.BiodiversityContext db, IConfiguration config) =>
 {
     var health = new System.Collections.Generic.Dictionary<string, object>();
@@ -111,7 +111,7 @@ app.MapGet("/api/system-health", async (iNaturalist_Lite.Data.BiodiversityContex
     try
     {
         bool canConnect = await db.Database.CanConnectAsync();
-        health["Database"] = canConnect ? "Connected (Neon)" : "Disconnected";
+        health["Database"] = canConnect ? "Connected (Supabase)" : "Disconnected";
     }
     catch (Exception ex)
     {
